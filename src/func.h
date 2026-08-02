@@ -23,7 +23,7 @@ uint8_t crc8_d5(const uint8_t *data, uint8_t len) {
   return crc;
 }
 
-/**
+/*
  * @brief Unpacks 16 RC channels (11 bits each) from a byte stream.
  * @param data Pointer to the packed channel data.
  * @param out Pointer to the output array for the 16 channel values.
