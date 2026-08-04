@@ -8,15 +8,22 @@
 #define RXD1_PIN 20
 #define TXD1_PIN 21
 #define CRSF_BAUD_RATE 420000
-#define CRSF_SYNC_BYTE 0xC8
+#define CRSF_ADDRESS_FLIGHT_CONTROLLER 0xC8
+#define CRSF_ADDRESS_TRANSMITTER 0xEE
 #define RC_CHANNELS_PACKED 0x16
 
-uint8_t AXE_CHANNEL = 9; // Канал пульта (Ch10)
+uint8_t AXE_C_CHANNEL = 14; // Канал пульта (Ch15)
+uint8_t AXE_A_CHANNEL = 15; // Канал пульта (Ch16)
 
 // Axe C Motor pinout 
-const int Axe_C_Step = 5;  
-const int Axe_C_Dir  = 6;  
-const int pinEn      = 4;  
+const int pinEn      = 3; // Common enable pin
+
+const int Axe_C_Step = 4;  
+const int Axe_C_Dir  = 5; 
+
+const int Axe_A_Step = 6;  
+const int Axe_A_Dir  = 7; 
+  
 
 // Буфер для зчитування байтів CRSF
 std::vector<uint8_t> crsfBuffer;
@@ -28,24 +35,29 @@ uint16_t channel[16] = {0};
 uint8_t crc8_d5(const uint8_t *data, uint8_t len);
 void unpackCh(const uint8_t *data, uint16_t *out);
 
-// Ініціалізація об'єкта мотора Axe_C
-AccelStepper stepper(AccelStepper::DRIVER, Axe_C_Step, Axe_C_Dir);
+// initilize motors
+AccelStepper stepperC(AccelStepper::DRIVER, Axe_C_Step, Axe_C_Dir);
+AccelStepper stepperA(AccelStepper::DRIVER, Axe_A_Step, Axe_A_Dir);
 
 void setup() {
   Serial.begin(115200);
   delay(100);
   
   // Ініціалізація швидкісного порту для CRSF receiver
-  Serial1.begin(CRSF_BAUD_RATE, SERIAL_8N1, RXD1_PIN, TXD1_PIN);
+  Serial1.begin(CRSF_BAUD_RATE, SERIAL_8N1, RXD1_PIN, TXD1_PIN, /*inverted=*/ true);
   delay(100);
 
-  // Активація драйвера мотора
+  // Активація драйверів моторів (спільна лінія EN)
   pinMode(pinEn, OUTPUT);
   digitalWrite(pinEn, LOW); 
   
-  // Конфігурація лімітів швидкості
-  stepper.setMaxSpeed(4000.0); // Обмежуємо планку максимальної швидкості
-  stepper.setSpeed(0);         // Початкова швидкість — мотор стоїть
+  // Конфігурація лімітів швидкості для Motor C
+  stepperC.setMaxSpeed(4000.0);
+  stepperC.setSpeed(0);        
+
+  // Конфігурація лімітів швидкості для Motor A
+  stepperA.setMaxSpeed(4000.0);
+  stepperA.setSpeed(0);
 }
 
 void loop() {
@@ -59,7 +71,7 @@ void loop() {
   if (crsfBuffer.size() >= 2) {
     auto it = crsfBuffer.begin();
     while (it != crsfBuffer.end()) {
-      if (*it == CRSF_SYNC_BYTE) {
+      if (*it == CRSF_ADDRESS_TRANSMITTER) {
         uint8_t len = *(it + 1);
 
         // Перевіряємо, чи пакет зайшов повністю
@@ -73,27 +85,38 @@ void loop() {
             unpackCh(packetStart + 3, channel); 
            
             // Отримуємо поточне значення з пульта (зазвичай діапазон від 172 до 1811, де ~992 середина)
-            uint16_t channelValue = channel[AXE_CHANNEL];
-                        
-            // --- ДИНАМІЧНА ЗМІНА ШВИДКОСТІ ---
-            // Створюємо мертву зону (Neutral Zone) в центрі джойстика, щоб мотор не сіпався від шумів
-            if (channelValue >= 950 && channelValue <= 1030) {
-              stepper.setSpeed(0); 
+            uint16_t Channel_C_Value = channel[AXE_C_CHANNEL];
+            uint16_t Channel_A_Value = channel[AXE_A_CHANNEL];
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////                      
+            // --- КЕРУВАННЯ МОТОРОМ C ---
+            if (Channel_C_Value >= 950 && Channel_C_Value <= 1030) {
+              stepperC.setSpeed(0); 
             } 
-            else if (channelValue < 950) {
-              // Джойстик відхилено назад/ліворуч. 
-              // Пропорційно розраховуємо швидкість від 0 до -2000 кроків/сек
-              float speedFactor = (950.0 - channelValue) / (950.0 - 172.0);
-              stepper.setSpeed(-1 * (speedFactor * 2000.0)); 
+            else if (Channel_C_Value < 950) {
+              float speedFactor = (950.0 - Channel_C_Value) / (950.0 - 172.0);
+              stepperC.setSpeed(-1.0f * (speedFactor * 1500.0)); 
             } 
-            else if (channelValue > 1030) {
-              // Джойстик відхилено вперед/праворуч.
-              // Пропорційно розраховуємо швидкість від 0 до +2000 кроків/сек
-              float speedFactor = (channelValue - 1030.0) / (1811.0 - 1030.0);
-              stepper.setSpeed(speedFactor * 2000.0);
+            else if (Channel_C_Value > 1030) {
+              float speedFactor = (Channel_C_Value - 1030.0) / (1811.0 - 1030.0);
+              stepperC.setSpeed(speedFactor * 1500.0);
             }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////  
+            // --- КЕРУВАННЯ МОТОРОМ A ---
+            if (Channel_A_Value >= 950 && Channel_A_Value <= 1030) {
+              stepperA.setSpeed(0); 
+            } 
+            else if (Channel_A_Value < 950) {
+              float speedFactor = (950.0 - Channel_A_Value) / (950.0 - 172.0);
+              stepperA.setSpeed(-1.0f * (speedFactor * 1500.0)); 
+            } 
+            else if (Channel_A_Value > 1030) {
+              float speedFactor = (Channel_A_Value - 1030.0) / (1811.0 - 1030.0);
+              stepperA.setSpeed(speedFactor * 1500.0);
+            }
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////  
           }
           it += len + 2; 
+
         } else {
           break; // Пакет не повний, чекаємо наступного loop()
         }
@@ -104,17 +127,19 @@ void loop() {
     // Очищуємо відпрацьовані дані з вектора
     crsfBuffer.erase(crsfBuffer.begin(), it);
   }
-
- /* // 3. Періодичний вивід реальної швидкості мотора в монітор порту для діагностики
+       /*
+  // 3. Діагностика у монітор порту
   static unsigned long lastPrintTime = 0;
   if (millis() - lastPrintTime > 100) { 
-    Serial.printf("Ch%d Value: %4u | Real-Time Motor Speed: %.1f steps/s\n", 
-                  AXE_CHANNEL + 1, channel[AXE_CHANNEL], stepper.speed());
+    Serial.printf("Ch%d Value: %4u | Motor C Speed: %.1f steps/s Ch%d Value: %4u | Motor A Speed: %.1f steps/s\n", 
+                  AXE_C_CHANNEL + 1, channel[AXE_C_CHANNEL], stepperC.speed(),
+                  AXE_A_CHANNEL + 1, channel[AXE_A_CHANNEL], stepperA.speed());
     lastPrintTime = millis();
-  }*/
+  }   */
 
   // --- ГОЛОВНИЙ ВИКОНАВЧИЙ ІМПУЛЬС ---
   // Працює на кожному циклі мікроконтролера. 
   // Розраховує інтервал динамічно на основі того значення, яке прийшло з умов вище.
-  stepper.runSpeed();
+  stepperC.runSpeed();
+  stepperA.runSpeed();
 }
