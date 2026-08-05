@@ -12,7 +12,7 @@
 #define CRSF_ADDRESS_TRANSMITTER 0xEE
 #define RC_CHANNELS_PACKED 0x16
 
-uint8_t AXE_C_CHANNEL = 14; // Канал пульта (Ch15)
+// uint8_t AXE_C_CHANNEL = 14; // Канал пульта (Ch15)
 uint8_t AXE_A_CHANNEL = 15; // Канал пульта (Ch16)
 
 // Axe C Motor pinout 
@@ -85,33 +85,35 @@ void loop() {
             unpackCh(packetStart + 3, channel); 
            
             // Отримуємо поточне значення з пульта (зазвичай діапазон від 172 до 1811, де ~992 середина)
-            uint16_t Channel_C_Value = channel[AXE_C_CHANNEL];
+            //uint16_t Channel_C_Value = channel[AXE_C_CHANNEL];
             uint16_t Channel_A_Value = channel[AXE_A_CHANNEL];
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////                      
             // --- КЕРУВАННЯ МОТОРОМ C ---
-            if (Channel_C_Value >= 950 && Channel_C_Value <= 1030) {
+            if (Channel_A_Value >= 950 && Channel_A_Value <= 1030) {
               stepperC.setSpeed(0); 
             } 
-            else if (Channel_C_Value < 950) {
-              float speedFactor = (950.0 - Channel_C_Value) / (950.0 - 172.0);
-              stepperC.setSpeed(-1.0f * (speedFactor * 1500.0)); 
+            else if (Channel_A_Value >= 727 && Channel_A_Value <= 767) {
+               stepperC.setSpeed(500); 
             } 
-            else if (Channel_C_Value > 1030) {
-              float speedFactor = (Channel_C_Value - 1030.0) / (1811.0 - 1030.0);
-              stepperC.setSpeed(speedFactor * 1500.0);
+            else if (Channel_A_Value >= 563 && Channel_A_Value <= 603) {
+              stepperC.setSpeed(-500);
+            }
+            else{
+              stepperC.setSpeed(0);
             }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////  
             // --- КЕРУВАННЯ МОТОРОМ A ---
             if (Channel_A_Value >= 950 && Channel_A_Value <= 1030) {
               stepperA.setSpeed(0); 
             } 
-            else if (Channel_A_Value < 950) {
-              float speedFactor = (950.0 - Channel_A_Value) / (950.0 - 172.0);
-              stepperA.setSpeed(-1.0f * (speedFactor * 1500.0)); 
+            else if (Channel_A_Value >= 235 && Channel_A_Value <= 275) {
+              stepperA.setSpeed(500); 
             } 
-            else if (Channel_A_Value > 1030) {
-              float speedFactor = (Channel_A_Value - 1030.0) / (1811.0 - 1030.0);
-              stepperA.setSpeed(speedFactor * 1500.0);
+            else if (Channel_A_Value >= 399 && Channel_A_Value <= 439) {
+              stepperA.setSpeed(-500);
+            }
+            else{
+              stepperA.setSpeed(0);
             }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////  
           }
@@ -132,7 +134,7 @@ void loop() {
   static unsigned long lastPrintTime = 0;
   if (millis() - lastPrintTime > 100) { 
     Serial.printf("Ch%d Value: %4u | Motor C Speed: %.1f steps/s Ch%d Value: %4u | Motor A Speed: %.1f steps/s\n", 
-                  AXE_C_CHANNEL + 1, channel[AXE_C_CHANNEL], stepperC.speed(),
+                  AXE_A_CHANNEL + 1, channel[AXE_A_CHANNEL], stepperC.speed(),
                   AXE_A_CHANNEL + 1, channel[AXE_A_CHANNEL], stepperA.speed());
     lastPrintTime = millis();
   }   */
