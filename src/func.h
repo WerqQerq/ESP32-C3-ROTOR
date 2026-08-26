@@ -1,6 +1,3 @@
-
-
-
 // --- CRSF Protocol Implementation Functions ---
 
 /*
