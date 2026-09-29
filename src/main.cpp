@@ -18,13 +18,13 @@ bool AUTO = false;
 uint8_t AXE_A_CHANNEL = 15; // Канал пульта (Ch16)
 
 // Axe C Motor pinout
-const int pinEn = 3; // Common enable pin
+const int pinEn = 4; // Common enable pin
 
-const int Axe_C_Step = 4;
-const int Axe_C_Dir = 5;
+const int Axe_C_Step = 3;
+const int Axe_C_Dir = 2;
 
-const int Axe_A_Step = 6;
-const int Axe_A_Dir = 7;
+const int Axe_A_Step = 1;
+const int Axe_A_Dir = 0;
 
 // Буфер для зчитування байтів CRSF
 std::vector<uint8_t> crsfBuffer;
@@ -94,10 +94,10 @@ void loop() {
             uint16_t Channel_A_Value = channel[AXE_A_CHANNEL];
             /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-            if (Channel_A_Value >= 1500 && Channel_A_Value <= 1900) {
+             if (Channel_A_Value >= 1030 && Channel_A_Value <= 1100) {
               AUTO = true;
             } else
-              AUTO = false;
+              AUTO = false; 
 
             if (AUTO == false) {
               // --- MANUAL КЕРУВАННЯ МОТОРОМ C ---
